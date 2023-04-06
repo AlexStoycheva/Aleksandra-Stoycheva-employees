@@ -1,0 +1,171 @@
+import csv
+from datetime import datetime
+import tkinter as tk
+from tkinter import filedialog
+from tkinter import ttk
+
+
+def parse_date(date_str):
+    """A function that parses a date string into any date format"""
+    formats = [
+        '%Y-%m-%d',
+        '%m/%d/%Y',
+        '%m/%d/%y',
+        '%d/%m/%Y',
+        '%d/%m/%y',
+        '%Y/%m/%d',
+        '%d-%m-%Y',
+        '%d-%m-%y',
+        '%Y.%m.%d',
+        '%d.%m.%Y',
+        '%d.%m.%y',
+        '%b %d %Y',
+        '%b %d, %Y',
+        '%d %b %Y',
+        '%d %b, %Y',
+        '%B %d %Y',
+        '%B %d, %Y',
+        '%d %B %Y',
+        '%d %B, %Y',
+    ]
+    for frm in formats:
+        try:
+            dt = datetime.strptime(date_str, frm)
+            return dt.date()
+        except ValueError:
+            pass
+    raise ValueError(f'Invalid date format: {date_str}')
+
+
+def read_data():
+    filepath = filedialog.askopenfilename()
+
+    with open(filepath, 'r') as csv_file:
+        csv_reader = csv.reader(csv_file)
+
+        # Skipping headers from the file
+        next(csv_reader)
+        data = [tuple(row) for row in csv_reader]
+
+    return data
+
+
+def display_given_data():
+    given_data = read_data()
+
+    root = tk.Tk()
+    root.geometry('450x300')
+    root.title("Employees")
+
+    frame = tk.Frame(root, height=10)
+    frame.pack(side=tk.TOP, padx=10, pady=10)
+
+    scrollbar = ttk.Scrollbar(root, orient='vertical')
+    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+    table = ttk.Treeview(frame, yscrollcommand=scrollbar.set)
+
+    scrollbar.config(command=table.yview)
+
+    table["columns"] = ("Empl_ID", "Proj_ID", "Date_from", "Date_to")
+    table.column("#0", width=0, stretch=tk.NO)
+    table.column("Empl_ID", width=100, anchor=tk.CENTER)
+    table.column("Proj_ID", width=100, anchor=tk.CENTER)
+    table.column("Date_from", width=100, anchor=tk.CENTER)
+    table.column("Date_to", width=100, anchor=tk.CENTER)
+
+    table.heading("Empl_ID", text="Employee ID")
+    table.heading("Proj_ID", text="Project ID")
+    table.heading("Date_from", text="Start date")
+    table.heading("Date_to", text="End date")
+
+    for row in given_data:
+        table.insert("", tk.END, values=row)
+
+    table.pack()
+
+    show_pairs_button = tk.Button(root, text="Show pairs of employees",
+                                  command=lambda: table_results(given_data), height=2, width=24)
+    show_pairs_button.place(relx=.5, rely=.95, anchor='s')
+
+    root.mainloop()
+
+
+def get_pair_of_workers(data):
+    employees_dict = {}
+
+    # Extracting row data
+    for row in data:
+        employee_id, project_id, date_from, date_to = row
+        date_from = parse_date(date_from)
+
+        if date_to == 'NULL':
+            date_to = datetime.today()
+            date_to = date_to.date()
+        else:
+            date_to = parse_date(date_to)
+
+        if employee_id not in employees_dict:
+            employees_dict[employee_id] = []
+
+        employees_dict[employee_id].append((project_id, date_from, date_to))
+
+    # Finding the pairs of employees who have worked on common projects
+    result = []
+    for empl1 in employees_dict:
+        for empl2 in employees_dict:
+            if empl1 != empl2:
+                for project1 in employees_dict[empl1]:
+                    for project2 in employees_dict[empl2]:
+                        if project1[0] == project2[0]:
+                            duration = (min(project1[2], project2[2]) - max(project1[1], project2[1])).days
+                            if duration < 0 or [empl2, empl1, project1[0], duration] in result:
+                                continue
+
+                            result.append([empl1, empl2, project1[0], duration])
+
+    # Sort the result by duration
+    result = sorted(result, key=lambda x: x[3], reverse=True)
+
+    return result
+
+
+def table_results(data):
+    longest_working_pairs = get_pair_of_workers(data)
+
+    # Create GUI window with table
+    root = tk.Tk()
+    root.title("Pairs of employees")
+
+    table = ttk.Treeview(root)
+    table["columns"] = ("Employee #1", "Employee #2", "Project ID", "Days Worked")
+    table.column("#0", width=0, stretch=tk.NO)
+    table.column("Employee #1", width=100, anchor=tk.CENTER)
+    table.column("Employee #2", width=100, anchor=tk.CENTER)
+    table.column("Project ID", width=100, anchor=tk.CENTER)
+    table.column("Days Worked", width=100, anchor=tk.CENTER)
+
+    table.heading("Employee #1", text="Employee #1")
+    table.heading("Employee #2", text="Employee #2")
+    table.heading("Project ID", text="Project ID")
+    table.heading("Days Worked", text="Days Worked")
+
+    for row in longest_working_pairs:
+        table.insert("", tk.END, values=row)
+
+    table.pack(expand=tk.YES, fill=tk.BOTH)
+
+    root.mainloop()
+
+
+root = tk.Tk()
+root.geometry('230x100')
+root.title("CSV Viewer")
+
+label = tk.Label(root, text='Upload a CSV file')
+label.place(relx=.3, rely=0.15)
+
+open_file_button = tk.Button(root, text="Upload file", command=display_given_data, height=2, width=10)
+open_file_button.place(relx=.5, rely=.7, anchor=tk.CENTER)
+
+root.mainloop()
