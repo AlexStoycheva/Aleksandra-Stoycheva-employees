@@ -6,7 +6,7 @@ from tkinter import ttk
 
 
 def parse_date(date_str):
-    """A function that parses a date string into any date format"""
+    """ Parses a date string into any date format """
     formats = [
         '%Y-%m-%d',
         '%m/%d/%Y',
@@ -38,6 +38,7 @@ def parse_date(date_str):
 
 
 def read_data():
+    """ Reads the data from the CSV file """
     filepath = filedialog.askopenfilename()
 
     with open(filepath, 'r') as csv_file:
@@ -51,6 +52,7 @@ def read_data():
 
 
 def display_given_data():
+    """ A functions that displays the employees, the project id, the starting date and the end date in datagrid """
     given_data = read_data()
 
     root = tk.Tk()
@@ -92,9 +94,9 @@ def display_given_data():
 
 
 def get_pair_of_workers(data):
+    """ A functions that identifies the pairs of employees who have worked together on common projects, sorted in descending order """
     employees_dict = {}
 
-    # Extracting row data
     for row in data:
         employee_id, project_id, date_from, date_to = row
         date_from = parse_date(date_from)
@@ -110,7 +112,6 @@ def get_pair_of_workers(data):
 
         employees_dict[employee_id].append((project_id, date_from, date_to))
 
-    # Finding the pairs of employees who have worked on common projects
     result = []
     for empl1 in employees_dict:
         for empl2 in employees_dict:
@@ -124,13 +125,13 @@ def get_pair_of_workers(data):
 
                             result.append([empl1, empl2, project1[0], duration])
 
-    # Sort the result by duration
     result = sorted(result, key=lambda x: x[3], reverse=True)
 
     return result
 
 
 def table_results(data):
+    """ A function that displays the end result in datagrid """
     longest_working_pairs = get_pair_of_workers(data)
 
     # Create GUI window with table
